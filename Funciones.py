@@ -1,52 +1,57 @@
 from tkinter import *
 
+ventanaPrincipal = Tk()
+ventanaPrincipal.title("Sistema de Parqueo")
+ventanaPrincipal.geometry("400x400")
 
-ventana = Toplevel()
+def ventanaPrincipalObtenerVehiculos():
+    ventanaSecundaria = Toplevel()
+    ventanaSecundaria.title("Obtener Vehículos")
 
-def obtenerVehiculos(ventana):
-    botonVehiculos = Button(
-        ventana,
-        text= "Obtener Vehiculos",
-        command= ventana
-    )
+def ventanaPrincipalEstacionamiento():
+    ventanaSecundaria = Toplevel()
+    ventanaSecundaria.title("Estacionamiento")
 
-    botonVehiculos.pack(pady=10)
+def ventanaPrincipalReportes():
+    ventanaSecundaria = Toplevel()
+    ventanaSecundaria.title("Reportes")
 
-def verEstacionamiento(ventana):
-    botonEstacionamiento = Button(
-        ventana,
-        text= "Ver Estacionamiento",
-        command= ventana
-    )
+def ventanaPrincipalConfiguracion():
+    ventanaSecundaria = Toplevel()
+    ventanaSecundaria.title("Configuración")
 
-    botonEstacionamiento.pack(pady=10)
+def ventanaPrincipalAcercaDe():
+    ventanaSecundaria = Toplevel()
+    ventanaSecundaria.title("Acerca De")
 
+Button(
+    ventanaPrincipal,
+    text="Obtener Vehículos",
+    command=ventanaPrincipalObtenerVehiculos
+).pack(pady=20)
 
-def botonReportes(ventana):
-    botonReportes = Button (
-        ventana,
-        text = "Reportes",
-        command= ventana
-    )
+Button(
+    ventanaPrincipal,
+    text="Ver Estacionamiento",
+    command=ventanaPrincipalEstacionamiento
+).pack(pady=20)
 
-    botonReportes.pack(pady=10)
+Button(
+    ventanaPrincipal,
+    text="Reportes",
+    command=ventanaPrincipalReportes
+).pack(pady=20)
 
+Button(
+    ventanaPrincipal,
+    text="Configuración",
+    command=ventanaPrincipalConfiguracion
+).pack(pady=20)
 
-def botonConfiguracion(ventana):
-    botonConfiguracion = Button (
-        ventana,
-        text = "Configuración",
-        command= ventana
-    )
+Button(
+    ventanaPrincipal,
+    text="Acerca De",
+    command=ventanaPrincipalAcercaDe
+).pack(pady=20)
 
-    botonConfiguracion.pack(pady=10)
-
-
-def botonAcercaDe(ventana):
-    botonAcercaDe = Button (
-        ventana,
-        text = "Acerca De",
-        command= ventana
-    )
-
-    botonAcercaDe.pack(pady=10)
+ventanaPrincipal.mainloop()
