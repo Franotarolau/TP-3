@@ -1,78 +1,97 @@
 from tkinter import *
+from tkinter import messagebox
+import os
+import json
 
 ventanaPrincipal = Tk()
 ventanaPrincipal.title("Sistema de Parqueo")
 ventanaPrincipal.geometry("400x400")
-#2
-#Configuracion
-tamanoEstacionamiento=0
-tiempoGracia=0
-montoHora=0
-tieneElectrico=False
+
+cantidadParqueos = None
 
 def ventanaPrincipalObtenerVehiculos():
     ventanaSecundaria = Toplevel()
     ventanaSecundaria.title("Obtener Vehículos")
 
+
 def ventanaPrincipalEstacionamiento():
     ventanaSecundaria = Toplevel()
     ventanaSecundaria.title("Estacionamiento")
+
 
 def ventanaPrincipalReportes():
     ventanaSecundaria = Toplevel()
     ventanaSecundaria.title("Reportes")
 
+
 def ventanaPrincipalConfiguracion():
     ventanaSecundaria = Toplevel()
     ventanaSecundaria.title("Configuración")
-        #2
-    ventanaSecundaria.geometry("350x300")
+    ventanaSecundaria.geometry("350x350")
     Label(
         ventanaSecundaria,
-        text="Tamaño del estacionamiento:"
+        text="¿Cuántos parqueos tiene su estacionamiento?"
     ).pack(pady=5)
-    entradaTamano=Entry(ventanaSecundaria)
-    entradaTamano.pack()
+    entradaCantidad = Entry(ventanaSecundaria)
+    entradaCantidad.pack(pady=5)
     Label(
         ventanaSecundaria,
         text="Tiempo de gracia (minutos):"
     ).pack(pady=5)
-    entradaTiempoGracia=Entry(ventanaSecundaria)
-    entradaTiempoGracia.pack()
+    entradaTiempoGracia = Entry(ventanaSecundaria)
+    entradaTiempoGracia.pack(pady=5)
     Label(
         ventanaSecundaria,
-        text="Monto por hora:").pack(pady=5)
-    entradaMontoHora=Entry(ventanaSecundaria)
-    entradaMontoHora.pack()
-    electrico=IntVar()
+        text="Cobro por hora (₡):"
+    ).pack(pady=5)
+    entradaCobroHora = Entry(ventanaSecundaria)
+    entradaCobroHora.pack(pady=5)
+    carrosElectricos = IntVar()
     Checkbutton(
         ventanaSecundaria,
-        text="Posee espacio para vehículos eléctricos",
-        variable=electrico
+        text="¿Posee espacios para vehículos eléctricos?",
+        variable=carrosElectricos
     ).pack(pady=10)
+
     def guardarConfiguracion():
-        global tamanoEstacionamiento
-        global tiempoGracia
-        global montoHora
-        global tieneElectrico
+        global cantidadParqueos
         try:
-            tamanoEstacionamiento=int(entradaTamano.get())
-            tiempoGracia=int(entradaTiempoGracia.get())
-            montoHora=int(entradaMontoHora.get())
-            tieneElectrico=bool(electrico.get())
-            messagebox.showinfo("Configuración","Configuración guardada correctamente.")
+            cantidadParqueos = int(entradaCantidad.get())
+            tiempoGracia = int(entradaTiempoGracia.get())
+            cobroHora = int(entradaCobroHora.get())
+            tieneElectricos = bool(carrosElectricos.get())
+            if cantidadParqueos <= 0:
+                raise ValueError
+            configuracion = {
+                "cantidadParqueos": cantidadParqueos,
+                "tiempoGracia": tiempoGracia,
+                "cobroHora": cobroHora,
+                "tieneElectricos": tieneElectricos
+            }
+            with open("configuracion.json", "w") as archivo:
+                json.dump(configuracion, archivo, indent=4)
+            messagebox.showinfo(
+                "Configuración",
+                "Configuración guardada correctamente."
+            )
             ventanaSecundaria.destroy()
         except ValueError:
-            messagebox.showerror("Error","Ingrese únicamente números.")
+            messagebox.showerror(
+                "Error",
+                "Ingrese valores válidos."
+            )
+
     Button(
         ventanaSecundaria,
         text="Guardar Configuración",
         command=guardarConfiguracion
     ).pack(pady=15)
 
+
 def ventanaPrincipalAcercaDe():
     ventanaSecundaria = Toplevel()
     ventanaSecundaria.title("Acerca De")
+
 
 Button(
     ventanaPrincipal,
@@ -105,4 +124,3 @@ Button(
 ).pack(pady=20)
 
 ventanaPrincipal.mainloop()
-#3 para si??
