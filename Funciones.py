@@ -105,3 +105,4 @@ Button(
 ).pack(pady=20)
 
 ventanaPrincipal.mainloop()
+#3 para si??
