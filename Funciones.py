@@ -2,6 +2,7 @@ from tkinter import *
 from tkinter import messagebox
 import os
 import json
+from math import *
 
 ventanaPrincipal = Tk()
 ventanaPrincipal.title("Sistema de Parqueo")
@@ -134,6 +135,45 @@ def ventanaPrincipalConfiguracion():
     ).pack(pady=15)
 
 
+def calcularCantidadVehiculos():
+    configuracion = obtenerConfiguracion()
+
+    if configuracion == None:
+        return
+
+    cantidadParqueos = configuracion["cantidadParqueos"]
+    tieneElectricos = configuracion["tieneElectricos"]
+
+
+    espacioEspecial = ceil(cantidadParqueos * 0.05)
+
+    if espacioEspecial < 2:
+        espacioEspecial = 2
+
+   
+    espaciosDisponibles = cantidadParqueos - espacioEspecial
+
+   
+    if tieneElectricos:
+        espaciosDisponibles = espaciosDisponibles - 1
+
+   
+    espaciosLibres = ceil(espaciosDisponibles * 0.05)
+
+    cantidadVehiculos = espaciosDisponibles - espaciosLibres
+
+    print("Cantidad de parqueos:", cantidadParqueos)
+    print("Espacios especiales:", espacioEspecial)
+    print("Tiene espacio eléctrico:", tieneElectricos)
+    print("Espacios disponibles:", espaciosDisponibles)
+    print("Espacios libres:", espaciosLibres)
+    print("Vehículos a solicitar:", cantidadVehiculos)
+
+    return cantidadVehiculos
+
+
+
+
 def ventanaPrincipalAcercaDe():
     ventanaSecundaria = Toplevel()
     ventanaSecundaria.title("Acerca De")
@@ -168,5 +208,8 @@ Button(
     text="Acerca De",
     command=ventanaPrincipalAcercaDe
 ).pack(pady=20)
+
+
+
 
 ventanaPrincipal.mainloop()
