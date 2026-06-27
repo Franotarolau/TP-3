@@ -173,10 +173,21 @@ def calcularCantidadVehiculos():
 
 
 
-
+#Listo
 def ventanaPrincipalAcercaDe():
     ventanaSecundaria = Toplevel()
     ventanaSecundaria.title("Acerca De")
+    ventanaSecundaria.geometry("1200x1000")
+    Label(
+        ventanaSecundaria,
+        text="Desarrollado por Caleb Cordoba Duran y Jose Francisco Otarola Ulate"
+    ).pack(pady=15)
+    botonRegresar = Button(ventanaSecundaria, text="Regresar",
+                           width=100,
+                           height=200,
+                           font=("Arial", 120),
+                           command=ventanaSecundaria.destroy)
+    botonRegresar.pack(pady=100)
 
 
 Button(
