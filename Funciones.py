@@ -417,21 +417,100 @@ def ventanaPrincipalObtenerVehiculos():
     ).pack(pady=10)
 
 
+def observarEspacio(numeroEspacio):
+    espacio="G-"+str(numeroEspacio).zfill(3)
+    for vehiculo in listaEstacionamientos:
+        if vehiculo.estadia[0]==espacio:
+            messagebox.showinfo(
+                "Espacio ocupado",
+                "Placa: "+vehiculo.info[0] + "\n" +
+                "Ubicación: "+vehiculo.estadia[0] + "\n" +
+                "Entrada: "+vehiculo.estadia[1]
+            )
+            return
+
+    messagebox.showinfo(
+        "Espacio libre",
+        "El espacio " + espacio + " está disponible."
+    )
 def ventanaPrincipalEstacionamiento():
-    configuracion = obtenerConfiguracion()
-
-    if configuracion == None:
+    configuracion=obtenerConfiguracion()
+    if configuracion==None:
         return
+    cantidadParqueos=configuracion["cantidadParqueos"]
+    tieneElectricos=configuracion["tieneElectricos"]
+    ventanaSecundaria=Toplevel()
+    ventanaSecundaria.title("Mapa del Estacionamiento")
+    ventanaSecundaria.geometry("1000x700")
+    Label(
+        ventanaSecundaria,
+        text="Estado del Estacionamiento",
+        font=("Arial", 16, "bold")
+    ).pack(pady=10)
+    marcoParqueos=Frame(ventanaSecundaria)
+    marcoParqueos.pack()
+    espaciosEspeciales=ceil(cantidadParqueos*0.05)
 
-    cantidadParqueos = configuracion["cantidadParqueos"]
+    if espaciosEspeciales<2:
+        espaciosEspeciales=2
 
-    ventanaSecundaria = Toplevel()
-    ventanaSecundaria.title("Estacionamiento")
+    columnas=10
+    #E=Espacio especial
+    #VE=Veiculo Electrico
+    for numero in range(1, cantidadParqueos+1):
+
+        colorEspacio="green"
+        textoEspacio=str(numero)
+
+        if numero <= espaciosEspeciales:
+            colorEspacio="blue"
+            textoEspacio="E" + str(numero)
+
+        elif tieneElectricos and numero==espaciosEspeciales + 1:
+            colorEspacio="yellow"
+            textoEspacio="VE"
+
+        for vehiculo in listaEstacionamientos:
+            ubicacionVehiculo=vehiculo.estadia[0]
+
+            if ubicacionVehiculo=="G-"+str(numero).zfill(3):
+                colorEspacio="red"
+                break
+
+        botonEspacio=Button(
+            marcoParqueos,
+            text=textoEspacio,
+            bg=colorEspacio,
+            width=8,
+            height=3,
+            command=lambda n=numero: observarEspacio(n)
+        )
+
+        fila=(numero-1)//columnas
+        columna=(numero-1)%columnas
+
+        botonEspacio.grid(
+            row=fila,
+            column=columna,
+            padx=5,
+            pady=5
+        )
 
     Label(
         ventanaSecundaria,
-        text="Cantidad de parqueos: " + str(cantidadParqueos)
+        text="Casetilla de Cobro",
+        bg="orange",
+        width=20,
+        height=2
     ).pack(pady=10)
+
+    Label(
+        ventanaSecundaria,
+        text="Baño",
+        bg="lightblue",
+        width=20,
+        height=2
+    ).pack(pady=5)
 
 
 def ventanaPrincipalReportes():
