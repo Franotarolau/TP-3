@@ -12,16 +12,14 @@ ventanaPrincipal = Tk()
 ventanaPrincipal.title("Sistema de Parqueo")
 ventanaPrincipal.geometry("400x400")
 
-
-ARCHIVO_CONFIGURACION = "configuracion.json"
-ARCHIVO_CATALOGOS = "catalogoVehiculos.json"
-ARCHIVO_BASE_DATOS = "baseDatosEstacionamiento.json"
-ARCHIVO_CLAVE_API = "mockarooApiKey.txt"
+ArchivoConfiguracion = "configuracion.json"
+ArchivoCatalogos = "catalogoVehiculos.json"
+ArchivosBaseDatos = "baseDatosEstacionamiento.json"
+ArchivoClaveAPI = "mockarooApiKey.txt"
 
 TIPOS_VEHICULO = ["Sedán", "SUV", "Pickup", "Hatchback", "Motocicleta"]
 
 listaEstacionamientos = []
-
 
 class Estacionamiento:
     def __init__(self, idVehiculo, placa, marca, color, tipo, ubicacion,
@@ -45,7 +43,6 @@ class Estacionamiento:
             "tipoPago": self.pago[1]
         }
 
-
 def estacionamientoDesdeDiccionario(diccionario):
     return Estacionamiento(
         diccionario["id"],
@@ -60,12 +57,11 @@ def estacionamientoDesdeDiccionario(diccionario):
         diccionario["tipoPago"]
     )
 
-
 def cargarBaseDatos():
-    if not os.path.exists(ARCHIVO_BASE_DATOS):
+    if not os.path.exists(ArchivosBaseDatos):
         return []
 
-    with open(ARCHIVO_BASE_DATOS, "r", encoding="utf-8") as archivo:
+    with open(ArchivosBaseDatos, "r", encoding="utf-8") as archivo:
         registros = json.load(archivo)
 
     listaResultado = []
@@ -74,19 +70,17 @@ def cargarBaseDatos():
 
     return listaResultado
 
-
 def guardarBaseDatos(listaObjetos):
     listaDiccionarios = []
     for objeto in listaObjetos:
         listaDiccionarios.append(objeto.aDiccionario())
 
-    with open(ARCHIVO_BASE_DATOS, "w", encoding="utf-8") as archivo:
+    with open(ArchivosBaseDatos, "w", encoding="utf-8") as archivo:
         json.dump(listaDiccionarios, archivo, indent=4, ensure_ascii=False)
 
-
 def cargarCatalogos():
-    if os.path.exists(ARCHIVO_CATALOGOS):
-        with open(ARCHIVO_CATALOGOS, "r", encoding="utf-8") as archivo:
+    if os.path.exists(ArchivoCatalogos):
+        with open(ArchivoCatalogos, "r", encoding="utf-8") as archivo:
             return json.load(archivo)
 
     catalogosIniciales = {"marca": {}, "color": {}, "tipo": {}}
@@ -98,11 +92,9 @@ def cargarCatalogos():
 
     return catalogosIniciales
 
-
 def guardarCatalogos(catalogos):
-    with open(ARCHIVO_CATALOGOS, "w", encoding="utf-8") as archivo:
+    with open(ArchivoCatalogos, "w", encoding="utf-8") as archivo:
         json.dump(catalogos, archivo, indent=4, ensure_ascii=False)
-
 
 def obtenerCodigo(catalogos, categoria, nombre):
     diccionarioCategoria = catalogos[categoria]
@@ -114,7 +106,6 @@ def obtenerCodigo(catalogos, categoria, nombre):
     diccionarioCategoria[nombre] = nuevoCodigo
     return nuevoCodigo
 
-
 def obtenerNombrePorCodigo(catalogos, categoria, codigo):
     diccionarioCategoria = catalogos[categoria]
 
@@ -124,7 +115,6 @@ def obtenerNombrePorCodigo(catalogos, categoria, codigo):
 
     return "Desconocido"
 
-
 def obtenerNombreTipoPago(codigoTipoPago):
     nombresTipoPago = {0: "Pendiente", 1: "Efectivo", 2: "SINPE", 3: "Tarjeta"}
 
@@ -133,18 +123,16 @@ def obtenerNombreTipoPago(codigoTipoPago):
 
     return "Desconocido"
 
-
 def obtenerConfiguracion():
-    if not os.path.exists(ARCHIVO_CONFIGURACION):
+    if not os.path.exists(ArchivoConfiguracion):
         messagebox.showerror(
             "Error",
             "Primero debe configurar el sistema."
         )
         return None
 
-    with open(ARCHIVO_CONFIGURACION, "r") as archivo:
+    with open(ArchivoConfiguracion, "r") as archivo:
         return json.load(archivo)
-
 
 def obtenerSiguienteId(listaObjetos):
     if len(listaObjetos) == 0:
@@ -157,7 +145,6 @@ def obtenerSiguienteId(listaObjetos):
 
     return idMaximo + 1
 
-
 def obtenerSiguienteNumeroGeneral(listaObjetos):
     contador = 0
     for objeto in listaObjetos:
@@ -166,7 +153,6 @@ def obtenerSiguienteNumeroGeneral(listaObjetos):
             contador = contador + 1
 
     return contador + 1
-
 
 def generarFechaHoraEntradaAleatoria():
     ahora = datetime.datetime.now()
@@ -181,19 +167,16 @@ def generarFechaHoraEntradaAleatoria():
 
     return fechaHoraAleatoria.strftime("%d-%m-%Y %H:%M")
 
-
 def cargarClaveApiGuardada():
-    if not os.path.exists(ARCHIVO_CLAVE_API):
+    if not os.path.exists(ArchivoClaveAPI):
         return ""
 
-    with open(ARCHIVO_CLAVE_API, "r") as archivo:
+    with open(ArchivoClaveAPI, "r") as archivo:
         return archivo.read().strip()
 
-
 def guardarClaveApi(claveApi):
-    with open(ARCHIVO_CLAVE_API, "w") as archivo:
+    with open(ArchivoClaveAPI, "w") as archivo:
         archivo.write(claveApi)
-
 
 def solicitarVehiculosMockaroo(cantidad, claveApi):
     columnas = [
@@ -219,7 +202,6 @@ def solicitarVehiculosMockaroo(cantidad, claveApi):
 
     return json.loads(contenido)
 
-
 def construirDiccionarioVehiculos(registrosMockaroo):
     diccionarioVehiculos = {}
 
@@ -237,7 +219,6 @@ def construirDiccionarioVehiculos(registrosMockaroo):
         }
 
     return diccionarioVehiculos
-
 
 def calcularCantidadVehiculos():
     configuracion = obtenerConfiguracion()
@@ -270,7 +251,6 @@ def calcularCantidadVehiculos():
     print("Vehículos a solicitar:", cantidadVehiculos)
 
     return cantidadVehiculos
-
 
 def ventanaPrincipalObtenerVehiculos():
     configuracion = obtenerConfiguracion()
@@ -416,7 +396,6 @@ def ventanaPrincipalObtenerVehiculos():
         command=procesarLlenadoMasivo
     ).pack(pady=10)
 
-
 def observarEspacio(numeroEspacio):
     espacio="G-"+str(numeroEspacio).zfill(3)
     for vehiculo in listaEstacionamientos:
@@ -459,23 +438,30 @@ def ventanaPrincipalEstacionamiento():
     #VE=Veiculo Electrico
     for numero in range(1, cantidadParqueos+1):
 
-        colorEspacio="green"
+        colorEspacio="#38b000" #Verde
         textoEspacio=str(numero)
 
         if numero <= espaciosEspeciales:
-            colorEspacio="blue"
+            colorEspacio="#072ac8" #Azul
             textoEspacio="E" + str(numero)
 
         elif tieneElectricos and numero==espaciosEspeciales + 1:
-            colorEspacio="yellow"
+            colorEspacio="#fcf300" #Amarrillo
             textoEspacio="VE"
 
         for vehiculo in listaEstacionamientos:
             ubicacionVehiculo=vehiculo.estadia[0]
 
             if ubicacionVehiculo=="G-"+str(numero).zfill(3):
-                colorEspacio="red"
+                colorEspacio="#ff002b" #Rojo
                 break
+        botonEspacio = Button(
+        marcoParqueos,
+        text=textoEspacio,
+        bg=colorEspacio,
+        width=8,
+        height=3
+        )
 
         botonEspacio=Button(
             marcoParqueos,
@@ -512,7 +498,6 @@ def ventanaPrincipalEstacionamiento():
         height=2
     ).pack(pady=5)
 
-
 def ventanaPrincipalReportes():
     configuracion = obtenerConfiguracion()
 
@@ -521,7 +506,6 @@ def ventanaPrincipalReportes():
 
     ventanaSecundaria = Toplevel()
     ventanaSecundaria.title("Reportes")
-
 
 def ventanaPrincipalConfiguracion():
     ventanaSecundaria = Toplevel()
@@ -577,7 +561,7 @@ def ventanaPrincipalConfiguracion():
                 "tieneElectricos": tieneElectricos
             }
 
-            with open(ARCHIVO_CONFIGURACION, "w") as archivo:
+            with open(ArchivoConfiguracion, "w") as archivo:
                 json.dump(configuracion, archivo, indent=4)
 
             messagebox.showinfo(
@@ -599,7 +583,6 @@ def ventanaPrincipalConfiguracion():
         command=guardarConfiguracion
     ).pack(pady=15)
 
-
 def ventanaPrincipalAcercaDe():
     ventanaSecundaria = Toplevel()
     ventanaSecundaria.title("Acerca De")
@@ -615,9 +598,7 @@ def ventanaPrincipalAcercaDe():
                            command=ventanaSecundaria.destroy)
     botonRegresar.pack(pady=100)
 
-
 listaEstacionamientos = cargarBaseDatos()
-
 
 Button(
     ventanaPrincipal,
@@ -648,6 +629,5 @@ Button(
     text="Acerca De",
     command=ventanaPrincipalAcercaDe
 ).pack(pady=20)
-
 
 ventanaPrincipal.mainloop()
