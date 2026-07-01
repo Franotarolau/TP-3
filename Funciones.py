@@ -22,7 +22,7 @@ ArchivoCatalogos = "catalogoVehiculos.json"
 ArchivosBaseDatos = "baseDatosEstacionamiento.json"
 ArchivoClaveAPI = "mockarooApiKey.txt"
 
-TIPOS_VEHICULO = ["Sedán", "SUV", "Pickup", "Hatchback", "Motocicleta"]
+TiposVehiculos = ["Sedán", "SUV", "Pickup", "Hatchback", "Motocicleta"]
 
 listaEstacionamientos = []
 
@@ -96,8 +96,8 @@ def cargarCatalogos():
     catalogosIniciales = {"marca": {}, "color": {}, "tipo": {}}
 
     indice = 0
-    while indice < len(TIPOS_VEHICULO):
-        catalogosIniciales["tipo"][TIPOS_VEHICULO[indice]] = indice + 1
+    while indice < len(TiposVehiculos):
+        catalogosIniciales["tipo"][TiposVehiculos[indice]] = indice + 1
         indice = indice + 1
 
     return catalogosIniciales
@@ -204,7 +204,7 @@ def solicitarVehiculosMockaroo(cantidad, claveApi):
         {"name": "placa", "type": "Regular Expression", "value": "[A-Z]{3}[0-9]{3}"},
         {"name": "marca", "type": "Car Make"},
         {"name": "color", "type": "Color"},
-        {"name": "tipo", "type": "Custom List", "values": TIPOS_VEHICULO}
+        {"name": "tipo", "type": "Custom List", "values": TiposVehiculos}
     ]
 
     cuerpoSolicitud = json.dumps(columnas).encode("utf-8")
@@ -380,6 +380,16 @@ def ventanaPrincipalObtenerVehiculos():
             ubicacion = "G-" + str(siguienteNumeroGeneral).zfill(3)
             fechaHoraEntrada = generarFechaHoraEntradaAleatoria()
 
+            confirmacion = messagebox.askyesno(
+                "Confirmar",
+                "¿Desea reservar el espacio " +
+                ubicacion +
+                " para este vehículo?"
+            )
+
+            if not confirmacion:
+                return
+                        
             nuevoVehiculo = Estacionamiento(
                 siguienteId,
                 placa,
@@ -422,7 +432,7 @@ def ventanaPrincipalObtenerVehiculos():
     
 ##
 def ventanaPago(vehiculo, ventanaAnterior):
-
+    tiempoSalida = datetime.datetime.now()
     configuracion = obtenerConfiguracion()
 
     ventanaPagoVehiculo = Toplevel()
@@ -434,8 +444,6 @@ def ventanaPago(vehiculo, ventanaAnterior):
         "%d-%m-%Y %H:%M"
     )
 
-    tiempoSalida = datetime.datetime.now()
-
     horas = ceil(
         (tiempoSalida - tiempoEntrada).total_seconds()
         / 3600
@@ -444,7 +452,12 @@ def ventanaPago(vehiculo, ventanaAnterior):
     if horas <= 0:
         horas = 1
 
-    monto = horas * configuracion["cobroHora"]
+    minutos = (tiempoSalida - tiempoEntrada).total_seconds() / 60
+    if minutos <= configuracion["tiempoGracia"]:
+        monto = 0
+    else:
+        horas = ceil((minutos - configuracion["tiempoGracia"]) / 60)
+        monto = horas * configuracion["cobroHora"]
 
     Label(
         ventanaPagoVehiculo,
@@ -474,183 +487,52 @@ def ventanaPago(vehiculo, ventanaAnterior):
         variable=metodoPago,
         value=3
     ).pack()
-
+    
 
     
     def confirmarPago():
-
+        
+        tiempoSalida = datetime.datetime.now()
         tipoPago = metodoPago.get()
-
         if tipoPago == 0:
             messagebox.showerror(
                 "Error",
                 "Seleccione un método de pago."
             )
             return
-
         vehiculo.estadia[2] = tiempoSalida.strftime(
             "%d-%m-%Y %H:%M"
         )
-
         vehiculo.pago = (
             monto,
             tipoPago
         )
-
         generarFacturaPDF(
             vehiculo
         )
-
-        listaEstacionamientos.remove(
-            vehiculo
-        )
-
+        if vehiculo in listaEstacionamientos:
+            listaEstacionamientos.remove(vehiculo)
         guardarBaseDatos(
             listaEstacionamientos
         )
-
         messagebox.showinfo(
             "Pago",
             "Pago realizado correctamente."
         )
-
         ventanaPagoVehiculo.destroy()
         ventanaAnterior.destroy()
 
-        Button(
-            ventanaPagoVehiculo,
-            text="Confirmar Pago",
-            command=confirmarPago
-        ).pack(pady=20)
+    Button(
+        ventanaPagoVehiculo,
+        text="Confirmar Pago",
+        command=confirmarPago
+    ).pack(pady=20)
 
 
-def generarFacturaPDF(vehiculo):
-
-    catalogos = cargarCatalogos()
-
-    nombreQR = (
-        "QR_" +
-        vehiculo.info[0] +
-        ".png"
-    )
-
-    qr = qrcode.make(
-        "Placa: " + vehiculo.info[0] +
-        "\nUbicación: " + vehiculo.estadia[0]
-    )
-
-    qr.save(nombreQR)
-
-    nombrePDF = (
-        "Factura_" +
-        vehiculo.info[0] +
-        ".pdf"
-    )
-
-    documento = SimpleDocTemplate(
-        nombrePDF
-    )
-
-    estilos = getSampleStyleSheet()
-
-    contenido = []
-
-    contenido.append(
-        Paragraph(
-            "Factura de Parqueo",
-            estilos["Title"]
-        )
-    )
-
-    contenido.append(
-        Paragraph(
-            "Placa: " + vehiculo.info[0],
-            estilos["Normal"]
-        )
-    )
-
-    contenido.append(
-        Paragraph(
-            "Marca: " +
-            obtenerNombrePorCodigo(
-                catalogos,
-                "marca",
-                vehiculo.info[1]
-            ),
-            estilos["Normal"]
-        )
-    )
-
-    contenido.append(
-        Paragraph(
-            "Color: " +
-            obtenerNombrePorCodigo(
-                catalogos,
-                "color",
-                vehiculo.info[2]
-            ),
-            estilos["Normal"]
-        )
-    )
-
-    contenido.append(
-        Paragraph(
-            "Ubicación: " +
-            vehiculo.estadia[0],
-            estilos["Normal"]
-        )
-    )
-
-    contenido.append(
-        Paragraph(
-            "Entrada: " +
-            vehiculo.estadia[1],
-            estilos["Normal"]
-        )
-    )
-
-    contenido.append(
-        Paragraph(
-            "Salida: " +
-            vehiculo.estadia[2],
-            estilos["Normal"]
-        )
-    )
-
-    contenido.append(
-        Paragraph(
-            "Monto: ₡" +
-            str(vehiculo.pago[0]),
-            estilos["Normal"]
-        )
-    )
-
-    contenido.append(
-        Paragraph(
-            "Pago: " +
-            obtenerNombreTipoPago(
-                vehiculo.pago[1]
-            ),
-            estilos["Normal"]
-        )
-    )
-
-    contenido.append(
-        Image(
-            nombreQR,
-            width=150,
-            height=150
-        )
-    )
-
-    documento.build(
-        contenido
-    )
 ##
     
 
 def generarFacturaPDF(vehiculo):
-
     catalogos = cargarCatalogos()
 
     marca = obtenerNombrePorCodigo(
@@ -665,31 +547,57 @@ def generarFacturaPDF(vehiculo):
         vehiculo.info[2]
     )
 
+    tipo = obtenerNombrePorCodigo(
+        catalogos,
+        "tipo",
+        vehiculo.info[3]
+    )
+
     tipoPago = obtenerNombreTipoPago(
         vehiculo.pago[1]
     )
 
-    nombreQR = "QR_" + vehiculo.info[0] + ".png"
+    fechaActual = datetime.datetime.now()
+
+    fechaArchivo = fechaActual.strftime("%d-%m-%Y_%H-%M")
 
     datosQR = (
-        "Placa: " + vehiculo.info[0] + "\n" +
-        "Ubicacion: " + vehiculo.estadia[0] + "\n" +
-        "Monto: " + str(vehiculo.pago[0]) + "\n" +
+        "Factura Parqueo\n"
+        "Placa: " + vehiculo.info[0] + "\n"
+        "Marca: " + marca + "\n"
+        "Tipo: " + tipo + "\n"
+        "Ubicación: " + vehiculo.estadia[0] + "\n"
+        "Entrada: " + vehiculo.estadia[1] + "\n"
+        "Salida: " + vehiculo.estadia[2] + "\n"
+        "Monto: ₡" + str(vehiculo.pago[0]) + "\n"
         "Pago: " + tipoPago
     )
 
+    nombreQR = "QR_" + vehiculo.info[0] + ".png"
+
     qr = qrcode.make(datosQR)
     qr.save(nombreQR)
+
+    nombrePDF = (
+        "factura_" +
+        vehiculo.info[0] +
+        "_" +
+        fechaArchivo +
+        ".pdf"
+    )
 
     pdf = FPDF()
 
     pdf.add_page()
 
+    pdf.set_auto_page_break(True, 15)
+
     pdf.set_font("Arial", "B", 16)
+
     pdf.cell(
         0,
         10,
-        "Factura de Parqueo",
+        "FACTURA DE PARQUEO",
         ln=True,
         align="C"
     )
@@ -698,75 +606,28 @@ def generarFacturaPDF(vehiculo):
 
     pdf.set_font("Arial", "", 12)
 
-    pdf.cell(
-        0,
-        10,
-        "Placa: " + vehiculo.info[0],
-        ln=True
-    )
-
-    pdf.cell(
-        0,
-        10,
-        "Marca: " + marca,
-        ln=True
-    )
-
-    pdf.cell(
-        0,
-        10,
-        "Color: " + color,
-        ln=True
-    )
-
-    pdf.cell(
-        0,
-        10,
-        "Ubicacion: " + vehiculo.estadia[0],
-        ln=True
-    )
-
-    pdf.cell(
-        0,
-        10,
-        "Fecha de entrada: " + vehiculo.estadia[1],
-        ln=True
-    )
-
-    pdf.cell(
-        0,
-        10,
-        "Fecha de salida: " + vehiculo.estadia[2],
-        ln=True
-    )
-
-    pdf.cell(
-        0,
-        10,
-        "Monto pagado: ₡" + str(vehiculo.pago[0]),
-        ln=True
-    )
-
-    pdf.cell(
-        0,
-        10,
-        "Metodo de pago: " + tipoPago,
-        ln=True
-    )
+    pdf.cell(0, 8, "Placa: " + vehiculo.info[0], ln=True)
+    pdf.cell(0, 8, "Marca: " + marca, ln=True)
+    pdf.cell(0, 8, "Color: " + color, ln=True)
+    pdf.cell(0, 8, "Tipo: " + tipo, ln=True)
+    pdf.cell(0, 8, "Ubicacion: " + vehiculo.estadia[0], ln=True)
+    pdf.cell(0, 8, "Fecha entrada: " + vehiculo.estadia[1], ln=True)
+    pdf.cell(0, 8, "Fecha salida: " + vehiculo.estadia[2], ln=True)
+    pdf.cell(0, 8, "Monto pagado: ₡" + str(vehiculo.pago[0]), ln=True)
+    pdf.cell(0, 8, "Metodo de pago: " + tipoPago, ln=True)
 
     pdf.ln(10)
 
     pdf.image(
         nombreQR,
-        x=70,
-        w=70
+        x=65,
+        w=80
     )
-
-    nombrePDF = "Factura_" + vehiculo.info[0] + ".pdf"
 
     pdf.output(nombrePDF)
 
-    
+    if os.path.exists(nombreQR):
+        os.remove(nombreQR)
 def observarEspacio(numeroEspacio):
 
     espacio = "G-" + str(numeroEspacio).zfill(3)
@@ -855,12 +716,16 @@ def observarEspacio(numeroEspacio):
             ).pack(pady=15)
 
             return
+    messagebox.showinfo(
+    "Espacio libre",
+    "Este espacio se encuentra disponible."
+    )
 
 ##
 def ventanaEstacionarVehiculo():
 
     configuracion = obtenerConfiguracion()
-
+    catalogos = cargarCatalogos()
     ventana = Toplevel()
     ventana.title("Estacionar Vehículo")
     ventana.geometry("450x500")
@@ -871,41 +736,46 @@ def ventanaEstacionarVehiculo():
 
     Label(ventana,text="Marca").pack()
 
-    marcasAPI = [
-        "Toyota",
-        "Honda",
-        "Hyundai",
-        "Ford",
-        "BMW",
-        "Nissan",
-        "Mazda",
-        "Kia"
-    ]
+    Label(
+        ventana,
+        text="Marca"
+    ).pack()
 
     comboMarca = ttk.Combobox(
         ventana,
-        values=marcasAPI,
+        values=sorted(catalogos["marca"].keys()),
         state="readonly"
     )
+
     comboMarca.pack(pady=5)
 
     Label(ventana,text="Color").pack()
 
-    coloresDisponibles = [
-        "Blanco",
-        "Negro",
-        "Rojo",
-        "Azul",
-        "Gris",
-        "Plateado"
-    ]
+    Label(
+        ventana,
+        text="Color"
+    ).pack()
 
     comboColor = ttk.Combobox(
         ventana,
-        values=coloresDisponibles,
+        values=sorted(catalogos["color"].keys()),
         state="readonly"
     )
+
     comboColor.pack(pady=5)
+
+    Label(
+        ventana,
+        text="Tipo de vehículo"
+    ).pack()
+
+    comboTipo = ttk.Combobox(
+        ventana,
+        values=sorted(catalogos["tipo"].keys()),
+        state="readonly"
+    )
+
+    comboTipo.pack(pady=5)
 
     Label(ventana,text="Tipo de espacio").pack()
 
@@ -995,16 +865,17 @@ def ventanaEstacionarVehiculo():
     def estacionar():
 
         catalogos = cargarCatalogos()
-
+        tipo = comboTipo.get()
         placa = entradaPlaca.get()
         marca = comboMarca.get()
         color = comboColor.get()
+        tipo = comboTipo.get()
         ubicacion = comboUbicacion.get()
 
-        if placa == "":
+        if placa == "" or marca == "" or color == "" or tipo == "" or ubicacion == "":
             messagebox.showerror(
                 "Error",
-                "Ingrese una placa."
+                "Debe completar todos los campos."
             )
             return
 
@@ -1019,13 +890,18 @@ def ventanaEstacionarVehiculo():
             "color",
             color
         )
+        codigoTipo = obtenerCodigo(
+            catalogos,
+            "tipo",
+            tipo
+        )
 
         nuevoVehiculo = Estacionamiento(
             obtenerSiguienteId(listaEstacionamientos),
             placa,
             codigoMarca,
             codigoColor,
-            1,
+            codigoTipo,
             ubicacion,
             datetime.datetime.now().strftime("%d-%m-%Y %H:%M"),
             "",
@@ -1104,13 +980,6 @@ def ventanaPrincipalEstacionamiento():
             if ubicacionVehiculo=="G-"+str(numero).zfill(3):
                 colorEspacio="#ff002b"
                 break
-        botonEspacio = Button(
-        marcoParqueos,
-        text=textoEspacio,
-        bg=colorEspacio,
-        width=8,
-        height=3
-        )
 
         botonEspacio=Button(
             marcoParqueos,
@@ -1181,7 +1050,7 @@ def ventanaPrincipalConfiguracion():
 
     Label(
         ventanaSecundaria,
-        text="Cobro por hora (₡):"
+        text="Cobro por hora (CRC):"
     ).pack(pady=5)
 
     entradaCobroHora = Entry(ventanaSecundaria)
