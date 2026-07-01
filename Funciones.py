@@ -1,5 +1,6 @@
 from tkinter import *
 from tkinter import messagebox
+from tkinter import ttk
 import os
 import json
 import random
@@ -7,10 +8,14 @@ import datetime
 import urllib.request
 import urllib.error
 from math import *
+import qrcode
+from fpdf import FPDF
+
 
 ventanaPrincipal = Tk()
 ventanaPrincipal.title("Sistema de Parqueo")
 ventanaPrincipal.geometry("400x400")
+
 
 ArchivoConfiguracion = "configuracion.json"
 ArchivoCatalogos = "catalogoVehiculos.json"
@@ -20,6 +25,7 @@ ArchivoClaveAPI = "mockarooApiKey.txt"
 TIPOS_VEHICULO = ["Sedán", "SUV", "Pickup", "Hatchback", "Motocicleta"]
 
 listaEstacionamientos = []
+
 
 class Estacionamiento:
     def __init__(self, idVehiculo, placa, marca, color, tipo, ubicacion,
@@ -43,6 +49,7 @@ class Estacionamiento:
             "tipoPago": self.pago[1]
         }
 
+
 def estacionamientoDesdeDiccionario(diccionario):
     return Estacionamiento(
         diccionario["id"],
@@ -57,6 +64,7 @@ def estacionamientoDesdeDiccionario(diccionario):
         diccionario["tipoPago"]
     )
 
+
 def cargarBaseDatos():
     if not os.path.exists(ArchivosBaseDatos):
         return []
@@ -70,6 +78,7 @@ def cargarBaseDatos():
 
     return listaResultado
 
+
 def guardarBaseDatos(listaObjetos):
     listaDiccionarios = []
     for objeto in listaObjetos:
@@ -77,6 +86,7 @@ def guardarBaseDatos(listaObjetos):
 
     with open(ArchivosBaseDatos, "w", encoding="utf-8") as archivo:
         json.dump(listaDiccionarios, archivo, indent=4, ensure_ascii=False)
+
 
 def cargarCatalogos():
     if os.path.exists(ArchivoCatalogos):
@@ -92,9 +102,11 @@ def cargarCatalogos():
 
     return catalogosIniciales
 
+
 def guardarCatalogos(catalogos):
     with open(ArchivoCatalogos, "w", encoding="utf-8") as archivo:
         json.dump(catalogos, archivo, indent=4, ensure_ascii=False)
+
 
 def obtenerCodigo(catalogos, categoria, nombre):
     diccionarioCategoria = catalogos[categoria]
@@ -106,6 +118,7 @@ def obtenerCodigo(catalogos, categoria, nombre):
     diccionarioCategoria[nombre] = nuevoCodigo
     return nuevoCodigo
 
+
 def obtenerNombrePorCodigo(catalogos, categoria, codigo):
     diccionarioCategoria = catalogos[categoria]
 
@@ -115,6 +128,7 @@ def obtenerNombrePorCodigo(catalogos, categoria, codigo):
 
     return "Desconocido"
 
+
 def obtenerNombreTipoPago(codigoTipoPago):
     nombresTipoPago = {0: "Pendiente", 1: "Efectivo", 2: "SINPE", 3: "Tarjeta"}
 
@@ -122,6 +136,7 @@ def obtenerNombreTipoPago(codigoTipoPago):
         return nombresTipoPago[codigoTipoPago]
 
     return "Desconocido"
+
 
 def obtenerConfiguracion():
     if not os.path.exists(ArchivoConfiguracion):
@@ -134,6 +149,7 @@ def obtenerConfiguracion():
     with open(ArchivoConfiguracion, "r") as archivo:
         return json.load(archivo)
 
+
 def obtenerSiguienteId(listaObjetos):
     if len(listaObjetos) == 0:
         return 1
@@ -145,6 +161,7 @@ def obtenerSiguienteId(listaObjetos):
 
     return idMaximo + 1
 
+
 def obtenerSiguienteNumeroGeneral(listaObjetos):
     contador = 0
     for objeto in listaObjetos:
@@ -153,6 +170,7 @@ def obtenerSiguienteNumeroGeneral(listaObjetos):
             contador = contador + 1
 
     return contador + 1
+
 
 def generarFechaHoraEntradaAleatoria():
     ahora = datetime.datetime.now()
@@ -167,6 +185,7 @@ def generarFechaHoraEntradaAleatoria():
 
     return fechaHoraAleatoria.strftime("%d-%m-%Y %H:%M")
 
+
 def cargarClaveApiGuardada():
     if not os.path.exists(ArchivoClaveAPI):
         return ""
@@ -174,9 +193,11 @@ def cargarClaveApiGuardada():
     with open(ArchivoClaveAPI, "r") as archivo:
         return archivo.read().strip()
 
+
 def guardarClaveApi(claveApi):
     with open(ArchivoClaveAPI, "w") as archivo:
         archivo.write(claveApi)
+
 
 def solicitarVehiculosMockaroo(cantidad, claveApi):
     columnas = [
@@ -202,6 +223,7 @@ def solicitarVehiculosMockaroo(cantidad, claveApi):
 
     return json.loads(contenido)
 
+
 def construirDiccionarioVehiculos(registrosMockaroo):
     diccionarioVehiculos = {}
 
@@ -219,6 +241,7 @@ def construirDiccionarioVehiculos(registrosMockaroo):
         }
 
     return diccionarioVehiculos
+
 
 def calcularCantidadVehiculos():
     configuracion = obtenerConfiguracion()
@@ -251,6 +274,7 @@ def calcularCantidadVehiculos():
     print("Vehículos a solicitar:", cantidadVehiculos)
 
     return cantidadVehiculos
+
 
 def ventanaPrincipalObtenerVehiculos():
     configuracion = obtenerConfiguracion()
@@ -395,23 +419,640 @@ def ventanaPrincipalObtenerVehiculos():
         text="Solicitar vehículos a la API",
         command=procesarLlenadoMasivo
     ).pack(pady=10)
+    
+##
+def ventanaPago(vehiculo, ventanaAnterior):
 
-def observarEspacio(numeroEspacio):
-    espacio="G-"+str(numeroEspacio).zfill(3)
-    for vehiculo in listaEstacionamientos:
-        if vehiculo.estadia[0]==espacio:
-            messagebox.showinfo(
-                "Espacio ocupado",
-                "Placa: "+vehiculo.info[0] + "\n" +
-                "Ubicación: "+vehiculo.estadia[0] + "\n" +
-                "Entrada: "+vehiculo.estadia[1]
+    configuracion = obtenerConfiguracion()
+
+    ventanaPagoVehiculo = Toplevel()
+    ventanaPagoVehiculo.title("Pago")
+    ventanaPagoVehiculo.geometry("350x350")
+
+    tiempoEntrada = datetime.datetime.strptime(
+        vehiculo.estadia[1],
+        "%d-%m-%Y %H:%M"
+    )
+
+    tiempoSalida = datetime.datetime.now()
+
+    horas = ceil(
+        (tiempoSalida - tiempoEntrada).total_seconds()
+        / 3600
+    )
+
+    if horas <= 0:
+        horas = 1
+
+    monto = horas * configuracion["cobroHora"]
+
+    Label(
+        ventanaPagoVehiculo,
+        text="Monto a pagar: ₡" + str(monto),
+        font=("Arial",12,"bold")
+    ).pack(pady=15)
+
+    metodoPago = IntVar()
+
+    Radiobutton(
+        ventanaPagoVehiculo,
+        text="Efectivo",
+        variable=metodoPago,
+        value=1
+    ).pack()
+
+    Radiobutton(
+        ventanaPagoVehiculo,
+        text="SINPE",
+        variable=metodoPago,
+        value=2
+    ).pack()
+
+    Radiobutton(
+        ventanaPagoVehiculo,
+        text="Tarjeta",
+        variable=metodoPago,
+        value=3
+    ).pack()
+
+
+    
+    def confirmarPago():
+
+        tipoPago = metodoPago.get()
+
+        if tipoPago == 0:
+            messagebox.showerror(
+                "Error",
+                "Seleccione un método de pago."
             )
             return
 
-    messagebox.showinfo(
-        "Espacio libre",
-        "El espacio " + espacio + " está disponible."
+        vehiculo.estadia[2] = tiempoSalida.strftime(
+            "%d-%m-%Y %H:%M"
+        )
+
+        vehiculo.pago = (
+            monto,
+            tipoPago
+        )
+
+        generarFacturaPDF(
+            vehiculo
+        )
+
+        listaEstacionamientos.remove(
+            vehiculo
+        )
+
+        guardarBaseDatos(
+            listaEstacionamientos
+        )
+
+        messagebox.showinfo(
+            "Pago",
+            "Pago realizado correctamente."
+        )
+
+        ventanaPagoVehiculo.destroy()
+        ventanaAnterior.destroy()
+
+        Button(
+            ventanaPagoVehiculo,
+            text="Confirmar Pago",
+            command=confirmarPago
+        ).pack(pady=20)
+
+
+def generarFacturaPDF(vehiculo):
+
+    catalogos = cargarCatalogos()
+
+    nombreQR = (
+        "QR_" +
+        vehiculo.info[0] +
+        ".png"
     )
+
+    qr = qrcode.make(
+        "Placa: " + vehiculo.info[0] +
+        "\nUbicación: " + vehiculo.estadia[0]
+    )
+
+    qr.save(nombreQR)
+
+    nombrePDF = (
+        "Factura_" +
+        vehiculo.info[0] +
+        ".pdf"
+    )
+
+    documento = SimpleDocTemplate(
+        nombrePDF
+    )
+
+    estilos = getSampleStyleSheet()
+
+    contenido = []
+
+    contenido.append(
+        Paragraph(
+            "Factura de Parqueo",
+            estilos["Title"]
+        )
+    )
+
+    contenido.append(
+        Paragraph(
+            "Placa: " + vehiculo.info[0],
+            estilos["Normal"]
+        )
+    )
+
+    contenido.append(
+        Paragraph(
+            "Marca: " +
+            obtenerNombrePorCodigo(
+                catalogos,
+                "marca",
+                vehiculo.info[1]
+            ),
+            estilos["Normal"]
+        )
+    )
+
+    contenido.append(
+        Paragraph(
+            "Color: " +
+            obtenerNombrePorCodigo(
+                catalogos,
+                "color",
+                vehiculo.info[2]
+            ),
+            estilos["Normal"]
+        )
+    )
+
+    contenido.append(
+        Paragraph(
+            "Ubicación: " +
+            vehiculo.estadia[0],
+            estilos["Normal"]
+        )
+    )
+
+    contenido.append(
+        Paragraph(
+            "Entrada: " +
+            vehiculo.estadia[1],
+            estilos["Normal"]
+        )
+    )
+
+    contenido.append(
+        Paragraph(
+            "Salida: " +
+            vehiculo.estadia[2],
+            estilos["Normal"]
+        )
+    )
+
+    contenido.append(
+        Paragraph(
+            "Monto: ₡" +
+            str(vehiculo.pago[0]),
+            estilos["Normal"]
+        )
+    )
+
+    contenido.append(
+        Paragraph(
+            "Pago: " +
+            obtenerNombreTipoPago(
+                vehiculo.pago[1]
+            ),
+            estilos["Normal"]
+        )
+    )
+
+    contenido.append(
+        Image(
+            nombreQR,
+            width=150,
+            height=150
+        )
+    )
+
+    documento.build(
+        contenido
+    )
+##
+    
+
+def generarFacturaPDF(vehiculo):
+
+    catalogos = cargarCatalogos()
+
+    marca = obtenerNombrePorCodigo(
+        catalogos,
+        "marca",
+        vehiculo.info[1]
+    )
+
+    color = obtenerNombrePorCodigo(
+        catalogos,
+        "color",
+        vehiculo.info[2]
+    )
+
+    tipoPago = obtenerNombreTipoPago(
+        vehiculo.pago[1]
+    )
+
+    nombreQR = "QR_" + vehiculo.info[0] + ".png"
+
+    datosQR = (
+        "Placa: " + vehiculo.info[0] + "\n" +
+        "Ubicacion: " + vehiculo.estadia[0] + "\n" +
+        "Monto: " + str(vehiculo.pago[0]) + "\n" +
+        "Pago: " + tipoPago
+    )
+
+    qr = qrcode.make(datosQR)
+    qr.save(nombreQR)
+
+    pdf = FPDF()
+
+    pdf.add_page()
+
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(
+        0,
+        10,
+        "Factura de Parqueo",
+        ln=True,
+        align="C"
+    )
+
+    pdf.ln(10)
+
+    pdf.set_font("Arial", "", 12)
+
+    pdf.cell(
+        0,
+        10,
+        "Placa: " + vehiculo.info[0],
+        ln=True
+    )
+
+    pdf.cell(
+        0,
+        10,
+        "Marca: " + marca,
+        ln=True
+    )
+
+    pdf.cell(
+        0,
+        10,
+        "Color: " + color,
+        ln=True
+    )
+
+    pdf.cell(
+        0,
+        10,
+        "Ubicacion: " + vehiculo.estadia[0],
+        ln=True
+    )
+
+    pdf.cell(
+        0,
+        10,
+        "Fecha de entrada: " + vehiculo.estadia[1],
+        ln=True
+    )
+
+    pdf.cell(
+        0,
+        10,
+        "Fecha de salida: " + vehiculo.estadia[2],
+        ln=True
+    )
+
+    pdf.cell(
+        0,
+        10,
+        "Monto pagado: ₡" + str(vehiculo.pago[0]),
+        ln=True
+    )
+
+    pdf.cell(
+        0,
+        10,
+        "Metodo de pago: " + tipoPago,
+        ln=True
+    )
+
+    pdf.ln(10)
+
+    pdf.image(
+        nombreQR,
+        x=70,
+        w=70
+    )
+
+    nombrePDF = "Factura_" + vehiculo.info[0] + ".pdf"
+
+    pdf.output(nombrePDF)
+
+    
+def observarEspacio(numeroEspacio):
+
+    espacio = "G-" + str(numeroEspacio).zfill(3)
+
+    for vehiculo in listaEstacionamientos:
+        if vehiculo.estadia[0] == espacio:
+
+            catalogos = cargarCatalogos()
+
+            ventanaInfo = Toplevel()
+            ventanaInfo.title("Observar espacio")
+            ventanaInfo.geometry("400x300")
+
+            Label(
+                ventanaInfo,
+                text="Ubicación"
+            ).pack()
+
+            entradaUbicacion = Entry(ventanaInfo)
+
+            entradaUbicacion.insert(
+                0,
+                vehiculo.estadia[0]
+            )
+
+            entradaUbicacion.config(
+                state="readonly"
+            )
+
+            entradaUbicacion.pack()
+
+            Label(ventanaInfo,text="Placa").pack()
+            entradaPlaca = Entry(ventanaInfo)
+            entradaPlaca.insert(0,vehiculo.info[0])
+            entradaPlaca.config(state="readonly")
+            entradaPlaca.pack()
+
+            Label(ventanaInfo,text="Marca").pack()
+            entradaMarca = Entry(ventanaInfo)
+            entradaMarca.insert(
+                0,
+                obtenerNombrePorCodigo(
+                    catalogos,
+                    "marca",
+                    vehiculo.info[1]
+                )
+            )
+            entradaMarca.config(state="readonly")
+            entradaMarca.pack()
+
+            Label(ventanaInfo,text="Color").pack()
+            entradaColor = Entry(ventanaInfo)
+            entradaColor.insert(
+                0,
+                obtenerNombrePorCodigo(
+                    catalogos,
+                    "color",
+                    vehiculo.info[2]
+                )
+            )
+            entradaColor.config(state="readonly")
+            entradaColor.pack()
+
+            Label(ventanaInfo,text="Hora entrada").pack()
+            entradaHora = Entry(ventanaInfo)
+            entradaHora.insert(0,vehiculo.estadia[1])
+            entradaHora.config(state="readonly")
+            entradaHora.pack()
+##
+            Button(
+                ventanaInfo,
+                text="Realizar Pago",
+                bg="green",
+                fg="white",
+                command=lambda:
+                    ventanaPago(
+                        vehiculo,
+                        ventanaInfo
+                    )
+            ).pack(pady=10)
+
+            Button(
+                ventanaInfo,
+                text="Regresar",
+                command=ventanaInfo.destroy
+            ).pack(pady=15)
+
+            return
+
+##
+def ventanaEstacionarVehiculo():
+
+    configuracion = obtenerConfiguracion()
+
+    ventana = Toplevel()
+    ventana.title("Estacionar Vehículo")
+    ventana.geometry("450x500")
+
+    Label(ventana,text="Placa").pack()
+    entradaPlaca = Entry(ventana)
+    entradaPlaca.pack(pady=5)
+
+    Label(ventana,text="Marca").pack()
+
+    marcasAPI = [
+        "Toyota",
+        "Honda",
+        "Hyundai",
+        "Ford",
+        "BMW",
+        "Nissan",
+        "Mazda",
+        "Kia"
+    ]
+
+    comboMarca = ttk.Combobox(
+        ventana,
+        values=marcasAPI,
+        state="readonly"
+    )
+    comboMarca.pack(pady=5)
+
+    Label(ventana,text="Color").pack()
+
+    coloresDisponibles = [
+        "Blanco",
+        "Negro",
+        "Rojo",
+        "Azul",
+        "Gris",
+        "Plateado"
+    ]
+
+    comboColor = ttk.Combobox(
+        ventana,
+        values=coloresDisponibles,
+        state="readonly"
+    )
+    comboColor.pack(pady=5)
+
+    Label(ventana,text="Tipo de espacio").pack()
+
+    tipos = ["General","Especial"]
+
+    if configuracion["tieneElectricos"]:
+        tipos.append("Eléctrico")
+
+    comboTipoEspacio = ttk.Combobox(
+        ventana,
+        values=tipos,
+        state="readonly"
+    )
+
+    comboTipoEspacio.pack(pady=5)
+
+    Label(
+        ventana,
+        text="Ubicación"
+    ).pack()
+
+    comboUbicacion = ttk.Combobox(
+        ventana,
+        state="readonly"
+    )
+    comboUbicacion.pack(pady=5)
+
+    def actualizarUbicaciones(event=None):
+
+        disponibles = []
+
+        tipo = comboTipoEspacio.get()
+
+        cantidad = configuracion["cantidadParqueos"]
+
+        especiales = ceil(cantidad * 0.05)
+
+        if especiales < 2:
+            especiales = 2
+
+        ocupados = []
+
+        for vehiculo in listaEstacionamientos:
+            ocupados.append(vehiculo.estadia[0])
+
+        if tipo == "Especial":
+
+            for i in range(1, especiales + 1):
+                espacio = "G-" + str(i).zfill(3)
+
+                if espacio not in ocupados:
+                    disponibles.append(espacio)
+
+        elif tipo == "Eléctrico":
+
+            numeroElectrico = especiales + 1
+
+            espacio = "G-" + str(numeroElectrico).zfill(3)
+
+            if espacio not in ocupados:
+                disponibles.append(espacio)
+
+        else:
+
+            inicio = especiales + 1
+
+            if configuracion["tieneElectricos"]:
+                inicio += 1
+
+            for i in range(inicio, cantidad + 1):
+
+                espacio = "G-" + str(i).zfill(3)
+
+                if espacio not in ocupados:
+                    disponibles.append(espacio)
+
+        comboUbicacion["values"] = disponibles
+
+        if len(disponibles) > 0:
+            comboUbicacion.current(0)
+
+    comboTipoEspacio.bind(
+        "<<ComboboxSelected>>",
+        actualizarUbicaciones
+    )
+
+    def estacionar():
+
+        catalogos = cargarCatalogos()
+
+        placa = entradaPlaca.get()
+        marca = comboMarca.get()
+        color = comboColor.get()
+        ubicacion = comboUbicacion.get()
+
+        if placa == "":
+            messagebox.showerror(
+                "Error",
+                "Ingrese una placa."
+            )
+            return
+
+        codigoMarca = obtenerCodigo(
+            catalogos,
+            "marca",
+            marca
+        )
+
+        codigoColor = obtenerCodigo(
+            catalogos,
+            "color",
+            color
+        )
+
+        nuevoVehiculo = Estacionamiento(
+            obtenerSiguienteId(listaEstacionamientos),
+            placa,
+            codigoMarca,
+            codigoColor,
+            1,
+            ubicacion,
+            datetime.datetime.now().strftime("%d-%m-%Y %H:%M"),
+            "",
+            0,
+            0
+        )
+
+        listaEstacionamientos.append(
+            nuevoVehiculo
+        )
+
+        guardarCatalogos(catalogos)
+        guardarBaseDatos(listaEstacionamientos)
+
+        messagebox.showinfo(
+            "Éxito",
+            "Vehículo estacionado correctamente."
+        )
+
+        ventana.destroy()
+
+    Button(
+        ventana,
+        text="Estacionar",
+        command=estacionar
+    ).pack(pady=15)
+
 def ventanaPrincipalEstacionamiento():
     configuracion=obtenerConfiguracion()
     if configuracion==None:
@@ -428,6 +1069,14 @@ def ventanaPrincipalEstacionamiento():
     ).pack(pady=10)
     marcoParqueos=Frame(ventanaSecundaria)
     marcoParqueos.pack()
+    Button(
+        ventanaSecundaria,
+        text="Estacionar Vehículo",
+        font=("Arial", 12, "bold"),
+        bg="#38b000",
+        fg="white",
+        command=ventanaEstacionarVehiculo
+    ).pack(pady=15)
     espaciosEspeciales=ceil(cantidadParqueos*0.05)
 
     if espaciosEspeciales<2:
@@ -438,22 +1087,22 @@ def ventanaPrincipalEstacionamiento():
     #VE=Veiculo Electrico
     for numero in range(1, cantidadParqueos+1):
 
-        colorEspacio="#38b000" #Verde
+        colorEspacio="#38b000"
         textoEspacio=str(numero)
 
         if numero <= espaciosEspeciales:
-            colorEspacio="#072ac8" #Azul
+            colorEspacio="#072ac8"
             textoEspacio="E" + str(numero)
 
         elif tieneElectricos and numero==espaciosEspeciales + 1:
-            colorEspacio="#fcf300" #Amarrillo
+            colorEspacio="#fcf300"
             textoEspacio="VE"
 
         for vehiculo in listaEstacionamientos:
             ubicacionVehiculo=vehiculo.estadia[0]
 
             if ubicacionVehiculo=="G-"+str(numero).zfill(3):
-                colorEspacio="#ff002b" #Rojo
+                colorEspacio="#ff002b"
                 break
         botonEspacio = Button(
         marcoParqueos,
@@ -498,6 +1147,7 @@ def ventanaPrincipalEstacionamiento():
         height=2
     ).pack(pady=5)
 
+
 def ventanaPrincipalReportes():
     configuracion = obtenerConfiguracion()
 
@@ -506,6 +1156,7 @@ def ventanaPrincipalReportes():
 
     ventanaSecundaria = Toplevel()
     ventanaSecundaria.title("Reportes")
+
 
 def ventanaPrincipalConfiguracion():
     ventanaSecundaria = Toplevel()
@@ -583,6 +1234,7 @@ def ventanaPrincipalConfiguracion():
         command=guardarConfiguracion
     ).pack(pady=15)
 
+
 def ventanaPrincipalAcercaDe():
     ventanaSecundaria = Toplevel()
     ventanaSecundaria.title("Acerca De")
@@ -598,7 +1250,9 @@ def ventanaPrincipalAcercaDe():
                            command=ventanaSecundaria.destroy)
     botonRegresar.pack(pady=100)
 
+
 listaEstacionamientos = cargarBaseDatos()
+
 
 Button(
     ventanaPrincipal,
@@ -629,5 +1283,6 @@ Button(
     text="Acerca De",
     command=ventanaPrincipalAcercaDe
 ).pack(pady=20)
+
 
 ventanaPrincipal.mainloop()
