@@ -25,13 +25,12 @@ ARCHIVO_CLAVE_API = "mockarooApiKey.txt"
 
 <<<<<<< HEAD
 TIPOS_VEHICULO = ["Sedan", "SUV", "Pickup", "Hatchback", "Motocicleta","Van"]
-=======
 TIPOS_VEHICULO = ["Sedán", "SUV", "Pickup", "Hatchback", "Motocicleta"]
->>>>>>> d9bc420f33eecfce6427d9423fb16e8ab73e0a70
+
 
 listaEstacionamientos = []
 
-#-
+
 class Estacionamiento:
     def __init__(self, idVehiculo, placa, marca, color, tipo, ubicacion,
                  fechaHoraEntrada, fechaHoraSalida, monto, tipoPago):
