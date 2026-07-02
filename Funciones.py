@@ -22,7 +22,7 @@ ARCHIVO_CATALOGOS = "catalogoVehiculos.json"
 ARCHIVO_BASE_DATOS = "baseDatosEstacionamiento.json"
 ARCHIVO_CLAVE_API = "mockarooApiKey.txt"
 
-TIPOS_VEHICULO = ["Sedan", "SUV", "Pickup", "Hatchback", "Motocicleta"]
+TIPOS_VEHICULO = ["Sedan", "SUV", "Pickup", "Hatchback", "Motocicleta","Van"]
 
 listaEstacionamientos = []
 
@@ -135,12 +135,29 @@ def obtenerSiguienteId(lista):
     return maximo + 1
 
 
-def obtenerSiguienteNumeroGeneral(lista):
-    contador = 0
-    for obj in lista:
-        if obj.estadia[0].startswith("G-"):
-            contador = contador + 1
-    return contador + 1
+def obtenerUbicacionesGeneralesDisponibles(configuracion, lista):
+    # Calcula la lista de espacios de tipo GENERAL que estan libres,
+    # respetando los especiales, el electrico (si existe) y los que ya
+    # estan ocupados. El llenado masivo SOLO debe usar espacios de esta lista.
+    total = configuracion["cantidadParqueos"]
+    electrico = configuracion["tieneElectricos"]
+    especiales = ceil(total * 0.05)
+    if especiales < 2:
+        especiales = 2
+    inicio = especiales + 1
+    if electrico:
+        inicio = inicio + 1
+    ocupados = []
+    for v in lista:
+        ocupados.append(v.estadia[0])
+    disponibles = []
+    i = inicio
+    while i <= total:
+        espacio = "G-" + str(i).zfill(3)
+        if espacio not in ocupados:
+            disponibles.append(espacio)
+        i = i + 1
+    return disponibles
 
 
 def generarFechaHoraEntradaAleatoria():
@@ -179,26 +196,46 @@ def generarPlaca():
     return placa
 
 
+# --- FUNCION CORREGIDA ---
+# Ahora usa realmente los parametros "cantidad" y "claveApi" en vez de valores
+# fijos, y captura el detalle del error que manda Mockaroo (para saber si es
+# key invalida, limite de uso excedido, etc).
 def solicitarVehiculosMockaroo(cantidad, claveApi):
-    columnas = [
-        {"name": "marca", "type": "Car Make"},
-        {"name": "color", "type": "Color"},
-        {"name": "tipo", "type": "Custom List", "values": TIPOS_VEHICULO}
-    ]
-    cuerpo = json.dumps(columnas).encode("utf-8")
-    url = "https://api.mockaroo.com/api/generate.json?key=" + claveApi + "&count=" + str(cantidad)
-    solicitud = urllib.request.Request(url, data=cuerpo, headers={"Content-Type": "application/json"}, method="POST")
-    with urllib.request.urlopen(solicitud, timeout=20) as respuesta:
-        contenido = respuesta.read().decode("utf-8")
-    return json.loads(contenido)
+    url = "https://api.mockaroo.com/api/b3675a70?count=" + str(cantidad) + "&key=" + claveApi
+    # Se agrega un User-Agent de navegador porque Cloudflare (que protege
+    # api.mockaroo.com) bloquea el User-Agent por defecto de urllib
+    # (error 1010 - "acceso denegado").
+    peticion = urllib.request.Request(
+        url,
+        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"}
+    )
+    try:
+        with urllib.request.urlopen(peticion, timeout=20) as respuesta:
+            contenido = respuesta.read().decode("utf-8")
+        return json.loads(contenido)
+    except urllib.error.HTTPError as error:
+        detalle = ""
+        try:
+            detalle = error.read().decode("utf-8")
+        except Exception:
+            pass
+        print("DETALLE DEL ERROR MOCKAROO:", detalle)
+        # Re-lanzamos el mismo error pero guardamos el detalle en el mensaje
+        # para poder mostrarlo en el messagebox de quien llama a esta funcion.
+        error.detalleMockaroo = detalle
+        raise error
 
 
 def construirDiccionarioVehiculos(registros):
     diccionario = {}
+
     for registro in registros:
-        placa = generarPlaca()
+
+        placa = registro["placa"]
+
         while placa in diccionario:
             placa = generarPlaca()
+
         diccionario[placa] = {
             "marca": registro["marca"],
             "color": registro["color"],
@@ -209,6 +246,7 @@ def construirDiccionarioVehiculos(registros):
             "monto": 0,
             "tipoPago": 0
         }
+
     return diccionario
 
 
@@ -416,35 +454,19 @@ def ventanaEstacionarVehiculo(marcoParqueos, configuracion, ubicacionPreseleccio
     entradaPlaca = Entry(ventana)
     entradaPlaca.pack(pady=5)
     Label(ventana, text="Marca").pack()
-    comboMarca = ttk.Combobox(ventana, values=sorted(catalogos["marca"].keys()), state="readonly")
-    comboMarca.pack(pady=5)
+    entradaMarca = Entry(ventana)
+    entradaMarca.pack(pady=5)
+
     Label(ventana, text="Color").pack()
-    comboColor = ttk.Combobox(ventana, values=sorted(catalogos["color"].keys()), state="readonly")
-    comboColor.pack(pady=5)
+    entradaColor = Entry(ventana)
+    entradaColor.pack(pady=5)
     Label(ventana, text="Tipo de vehiculo").pack()
     comboTipo = ttk.Combobox(ventana, values=sorted(catalogos["tipo"].keys()), state="readonly")
     comboTipo.pack(pady=5)
     Label(ventana, text="Ubicacion").pack()
     comboUbicacion = ttk.Combobox(ventana, state="readonly")
     comboUbicacion.pack(pady=5)
-    ocupados = []
-    for v in listaEstacionamientos:
-        ocupados.append(v.estadia[0])
-    total = configuracion["cantidadParqueos"]
-    electrico = configuracion["tieneElectricos"]
-    especiales = ceil(total * 0.05)
-    if especiales < 2:
-        especiales = 2
-    inicio = especiales + 1
-    if electrico:
-        inicio = inicio + 1
-    disponibles = []
-    i = inicio
-    while i <= total:
-        espacio = "G-" + str(i).zfill(3)
-        if espacio not in ocupados:
-            disponibles.append(espacio)
-        i = i + 1
+    disponibles = obtenerUbicacionesGeneralesDisponibles(configuracion, listaEstacionamientos)
     comboUbicacion["values"] = disponibles
     if ubicacionPreseleccionada != None and ubicacionPreseleccionada in disponibles:
         comboUbicacion.set(ubicacionPreseleccionada)
@@ -454,8 +476,8 @@ def ventanaEstacionarVehiculo(marcoParqueos, configuracion, ubicacionPreseleccio
     def estacionar():
         catalogosActuales = cargarCatalogos()
         placa = entradaPlaca.get().strip()
-        marca = comboMarca.get()
-        color = comboColor.get()
+        marca = entradaMarca.get().strip()
+        color = entradaColor.get().strip()
         tipo = comboTipo.get()
         ubicacion = comboUbicacion.get()
         if placa == "" or marca == "" or color == "" or tipo == "" or ubicacion == "":
@@ -642,10 +664,6 @@ def ventanaPrincipalObtenerVehiculos():
     ventanaSecundaria.title("Obtener Vehiculos")
     ventanaSecundaria.geometry("550x500")
     Label(ventanaSecundaria, text="Vehiculos a solicitar: " + str(cantidadVehiculos)).pack(pady=10)
-    Label(ventanaSecundaria, text="Clave de API de Mockaroo:").pack(pady=5)
-    entradaClaveApi = Entry(ventanaSecundaria, width=40)
-    entradaClaveApi.pack(pady=5)
-    entradaClaveApi.insert(0, cargarClaveApiGuardada())
     marcoTexto = Frame(ventanaSecundaria)
     marcoTexto.pack(pady=10, fill=BOTH, expand=True)
     barra = Scrollbar(marcoTexto)
@@ -662,7 +680,7 @@ def ventanaPrincipalObtenerVehiculos():
         if cantidadASolicitar == None or cantidadASolicitar <= 0:
             messagebox.showerror("Error", "No hay espacios disponibles.")
             return
-        claveApi = entradaClaveApi.get().strip()
+        claveApi = "51cdf520"
         if claveApi == "":
             messagebox.showerror("Error", "Debe ingresar la clave de API.")
             return
@@ -670,7 +688,11 @@ def ventanaPrincipalObtenerVehiculos():
         try:
             registrosMockaroo = solicitarVehiculosMockaroo(cantidadASolicitar, claveApi)
         except urllib.error.HTTPError as error:
-            messagebox.showerror("Error de API", "Mockaroo respondio con error: " + str(error.code))
+            detalle = getattr(error, "detalleMockaroo", "")
+            messagebox.showerror(
+                "Error de API",
+                "Mockaroo respondio con error: " + str(error.code) + "\n" + detalle
+            )
             return
         except urllib.error.URLError:
             messagebox.showerror("Error de Conexion", "No fue posible conectarse con la API.")
@@ -678,33 +700,71 @@ def ventanaPrincipalObtenerVehiculos():
         except (ValueError, KeyError):
             messagebox.showerror("Error", "La respuesta de la API no tiene el formato esperado.")
             return
-        if not messagebox.askyesno("Confirmar", "Confirma el llenado masivo de " + str(cantidadASolicitar) + " vehiculos?"):
+        if len(registrosMockaroo) == 0:
+            messagebox.showerror("Error", "La API no devolvio vehiculos para el llenado masivo.")
             return
+
         diccionario = construirDiccionarioVehiculos(registrosMockaroo)
         print(json.dumps(diccionario, indent=4, ensure_ascii=False))
+
+        # Ubicaciones REALES disponibles de tipo general, respetando
+        # especiales, electrico y lo que ya este ocupado en este momento.
+        ubicacionesDisponibles = obtenerUbicacionesGeneralesDisponibles(configuracionActual, listaEstacionamientos)
+
+        cantidadFinal = cantidadASolicitar
+        if len(ubicacionesDisponibles) < cantidadFinal:
+            cantidadFinal = len(ubicacionesDisponibles)
+
+        if cantidadFinal <= 0:
+            messagebox.showerror("Error", "No hay espacios generales disponibles para el llenado masivo.")
+            return
+
+        if not messagebox.askyesno("Confirmar", "Confirma el llenado masivo de " + str(cantidadFinal) + " vehiculos?"):
+            return
+
+        # Si la API devolvio MENOS vehiculos unicos de los que la matematica
+        # exige llenar (por ejemplo por limite de cuota diaria de Mockaroo),
+        # se reciclan los datos (marca, color, tipo) ya obtenidos y se les
+        # asigna una placa nueva generada localmente, para garantizar que
+        # SIEMPRE se complete exactamente la cantidad calculada y por ende
+        # todos los espacios generales (menos el 5% libre) queden en rojo.
+        placasOriginales = list(diccionario.keys())
+        datosOriginales = list(diccionario.values())
+        totalOriginales = len(placasOriginales)
+
         catalogos = cargarCatalogos()
         siguienteId = obtenerSiguienteId(listaEstacionamientos)
-        siguienteNumero = obtenerSiguienteNumeroGeneral(listaEstacionamientos)
         textoResultado.delete("1.0", END)
-        for placa in diccionario:
-            datos = diccionario[placa]
+
+        indice = 0
+        while indice < cantidadFinal:
+            datos = datosOriginales[indice % totalOriginales]
+            if indice < totalOriginales:
+                placaAsignada = placasOriginales[indice]
+            else:
+                placaAsignada = generarPlaca()
+                while placaAsignada in diccionario:
+                    placaAsignada = generarPlaca()
+                diccionario[placaAsignada] = datos
+
             codigoMarca = obtenerCodigo(catalogos, "marca", datos["marca"])
             codigoColor = obtenerCodigo(catalogos, "color", datos["color"])
             codigoTipo = obtenerCodigo(catalogos, "tipo", datos["tipo"])
-            ubicacion = "G-" + str(siguienteNumero).zfill(3)
+            ubicacion = ubicacionesDisponibles[indice]
             fechaHoraEntrada = generarFechaHoraEntradaAleatoria()
             nuevoVehiculo = Estacionamiento(
-                siguienteId, placa, codigoMarca, codigoColor, codigoTipo,
+                siguienteId, placaAsignada, codigoMarca, codigoColor, codigoTipo,
                 ubicacion, fechaHoraEntrada, "", 0, 0
             )
             listaEstacionamientos.append(nuevoVehiculo)
             generarVoucherPDF(nuevoVehiculo)
-            textoResultado.insert(END, placa + " | " + datos["marca"] + " | " + datos["color"] + " | " + datos["tipo"] + " | " + ubicacion + " | " + fechaHoraEntrada + "\n")
+            textoResultado.insert(END, placaAsignada + " | " + datos["marca"] + " | " + datos["color"] + " | " + datos["tipo"] + " | " + ubicacion + " | " + fechaHoraEntrada + "\n")
             siguienteId = siguienteId + 1
-            siguienteNumero = siguienteNumero + 1
+            indice = indice + 1
+
         guardarCatalogos(catalogos)
         guardarBaseDatos(listaEstacionamientos)
-        messagebox.showinfo("Obtener Vehiculos", "Se registraron " + str(len(diccionario)) + " vehiculos y se generaron los vouchers.")
+        messagebox.showinfo("Obtener Vehiculos", "Se registraron " + str(cantidadFinal) + " vehiculos y se generaron los vouchers.")
 
     Button(ventanaSecundaria, text="Solicitar vehiculos a la API", command=procesarLlenadoMasivo).pack(pady=10)
 
